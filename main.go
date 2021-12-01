@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/term"
@@ -36,21 +37,27 @@ func main() {
 			}
 			fmt.Printf("got '%s' from RFID module\n", string(buf[:14]))
 			if waitingForID {
-				buf[14] = 10
-				rrr := strings.NewReader(string(buf[:15]))
+				str := string(buf[:14])
+				decID, err := strconv.ParseInt(str, 16, 64)
+				if err != nil {
+					fmt.Printf("error while converting '%s' to decimal: %s\n", str, err)
+				}
+				resp := fmt.Sprintf("%d", decID)
+				rrr := strings.NewReader(resp)
 				io.Copy(w, rrr)
 				w.Close()
+				fmt.Printf("sent %d as response", decID)
 				PipeReader, w = io.Pipe()
 			}
 		}
 	}()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		waitingForID = true
 		_, err := io.Copy(w, PipeReader)
 		if err != nil {
 			fmt.Printf("error while sending response: %s\n", err)
 		}
-		fmt.Println("sent as response")
 		waitingForID = false
 	})
 	if *unsecure {
