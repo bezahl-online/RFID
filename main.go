@@ -46,7 +46,7 @@ func main() {
 				rrr := strings.NewReader(resp)
 				io.Copy(w, rrr)
 				w.Close()
-				fmt.Printf("sent %d as response", decID)
+				fmt.Printf("sent %d as response\n", decID)
 				PipeReader, w = io.Pipe()
 			}
 		}
