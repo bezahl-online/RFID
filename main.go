@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -8,57 +9,71 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/term"
 )
 
 var PipeReader *io.PipeReader
+var PipeWriter *io.PipeWriter
 var waitingForID = false
 var unsecure *bool
+
+const WAIT_FOR_RFID_MODULE_TIME = 3 * time.Second
+const RFID_PORT = "/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0"
 
 func main() {
 	unsecure = flag.Bool("u", false, "unsecure")
 	flag.Parse()
 	var err error
-	var w *io.PipeWriter
-	PipeReader, w = io.Pipe()
+	PipeReader, PipeWriter = io.Pipe()
 	go func() {
 		var port *term.Term
-		port, err = term.Open("/dev/ttyUSB0")
-		if err != nil {
-			log.Fatal(err)
-		}
-		port.SetRaw()
-		buf := make([]byte, 16)
 		for {
-			_, err := port.Read(buf)
+			port, err = term.Open(RFID_PORT)
 			if err != nil {
-				fmt.Printf("error while reading from RFID module: %s\n", err)
+				fmt.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", RFID_PORT)
+				writeToPipe("lost connection to RFID module")
+				time.Sleep(WAIT_FOR_RFID_MODULE_TIME)
+				continue
 			}
-			fmt.Printf("got '%s' from RFID module\n", string(buf[:14]))
-			if waitingForID {
-				str := string(buf[:14])
-				decID, err := strconv.ParseInt(str, 16, 64)
+			port.SetRaw()
+			buf := make([]byte, 16)
+			for {
+				fmt.Println("listening to RFID module ..")
+				n, err := port.Read(buf)
 				if err != nil {
-					fmt.Printf("error while converting '%s' to decimal: %s\n", str, err)
+					fmt.Printf("error while reading from RFID module: %s\n", err)
+					break
 				}
-				resp := fmt.Sprintf("%d", decID)
-				rrr := strings.NewReader(resp)
-				io.Copy(w, rrr)
-				w.Close()
-				fmt.Printf("sent %d as response\n", decID)
-				PipeReader, w = io.Pipe()
+				fmt.Printf("got '%s' from RFID module\n", string(buf[:14]))
+				if waitingForID && n > 7 {
+					waitingForID = false
+					str := string(buf[:14])
+					decID, err := strconv.ParseInt(str, 16, 64)
+					if err != nil {
+						fmt.Printf("error while converting '%s' to decimal: %s\n", str, err)
+					}
+					resp := fmt.Sprintf("%d", decID)
+					writeToPipe(resp)
+				}
 			}
 		}
 	}()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		var data string
+		buf := bytes.NewBufferString(data)
 		waitingForID = true
-		_, err := io.Copy(w, PipeReader)
+		_, err := io.Copy(buf, PipeReader)
+		fmt.Printf("sent %s as response\n", buf.String())
+		if strings.Contains(buf.String(), "lost") {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		w.Write(buf.Bytes())
 		if err != nil {
 			fmt.Printf("error while sending response: %s\n", err)
 		}
-		waitingForID = false
 	})
 	if *unsecure {
 		fmt.Println("http server started on port 8040")
@@ -66,4 +81,11 @@ func main() {
 	}
 	fmt.Println("https server started on port 8040")
 	log.Fatal(http.ListenAndServeTLS(":8040", "localhost.crt", "localhost.key", nil))
+}
+
+func writeToPipe(resp string) {
+	rrr := strings.NewReader(resp)
+	io.Copy(PipeWriter, rrr)
+	PipeWriter.Close()
+	PipeReader, PipeWriter = io.Pipe()
 }
