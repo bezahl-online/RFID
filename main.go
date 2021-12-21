@@ -33,7 +33,9 @@ func main() {
 			port, err = term.Open(RFID_PORT)
 			if err != nil {
 				fmt.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", RFID_PORT)
-				writeToPipe("lost connection to RFID module")
+				if waitingForID {
+					writeToPipe("lost connection to RFID module")
+				}
 				time.Sleep(WAIT_FOR_RFID_MODULE_TIME)
 				continue
 			}
