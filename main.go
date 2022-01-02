@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -20,19 +21,22 @@ var waitingForID = false
 var unsecure *bool
 
 const WAIT_FOR_RFID_MODULE_TIME = 3 * time.Second
-const RFID_PORT = "/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0"
 
 func main() {
 	unsecure = flag.Bool("u", false, "unsecure")
 	flag.Parse()
+	rfid_port := "/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0"
+	if len(os.Getenv("RFID_PORT_NAME")) > 3 {
+		rfid_port = os.Getenv("RFID_PORT_NAME")
+	}
 	var err error
 	PipeReader, PipeWriter = io.Pipe()
 	go func() {
 		var port *term.Term
 		for {
-			port, err = term.Open(RFID_PORT)
+			port, err = term.Open(rfid_port)
 			if err != nil {
-				fmt.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", RFID_PORT)
+				fmt.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", rfid_port)
 				if waitingForID {
 					writeToPipe("lost connection to RFID module")
 				}

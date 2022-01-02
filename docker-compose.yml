@@ -1,0 +1,19 @@
+# get key file here (if lost) https://console.cloud.google.com/iam-admin/serviceaccounts?hl=de&project=bezahlonline
+# rolls of the service account (Dienstkonten)
+# - Container Registry-Dienst-Agent
+# - Storage-Administrator
+# - Storage-Objekt-Administrator
+# gcloud auth configure-docker
+# gcloud auth activate-service-account docker@bezahlonline.iam.gserviceaccount.com --key-file=Downloads/bezahlonline-a10558ed55ec.json
+# docker push eu.gcr.io/bezahlonline/mmsapi_v0.1
+version: "3"
+services:
+  gm65server:
+    build: .
+    restart: always
+    image: "www.greisslomat.at:5000/RFID:1.0"
+    ports:
+      - "8040:8040"
+    volumes:
+      - /dev/serial/by-id/:/dev/serial/by-id
+    privileged: true
