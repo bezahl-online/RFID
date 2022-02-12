@@ -20,6 +20,7 @@ var PipeWriter *io.PipeWriter
 var waitingForID = false
 var unsecure *bool
 
+const BAUD = 9600
 const WAIT_FOR_RFID_MODULE_TIME = 3 * time.Second
 
 func main() {
@@ -44,6 +45,7 @@ func main() {
 				continue
 			}
 			port.SetRaw()
+			port.SetSpeed(BAUD)
 			buf := make([]byte, 16)
 			for {
 				fmt.Println("listening to RFID module ..")
