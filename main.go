@@ -54,8 +54,14 @@ func main() {
 					fmt.Printf("error while reading from RFID module: %s\n", err)
 					break
 				}
-				fmt.Printf("got '%s' from RFID module\n", string(buf[:14]))
-				if waitingForID && n > 7 {
+				fmt.Printf("got '%s' from RFID module(%d bytes)\n", string(buf[:14]), n)
+				if n != 16 {
+					fmt.Printf("error: data length is not 16 (it is %d)", n)
+					port.Flush()
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if waitingForID {
 					waitingForID = false
 					str := string(buf[:14])
 					decID, err := strconv.ParseInt(str, 16, 64)
