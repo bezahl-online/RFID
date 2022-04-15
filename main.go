@@ -37,7 +37,7 @@ func main() {
 		for {
 			port, err = term.Open(rfid_port)
 			if err != nil {
-				fmt.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", rfid_port)
+				log.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", rfid_port)
 				if waitingForID {
 					writeToPipe("lost connection to RFID module")
 				}
@@ -48,15 +48,15 @@ func main() {
 			port.SetSpeed(BAUD)
 			buf := make([]byte, 16)
 			for {
-				fmt.Println("listening to RFID module ..")
+				log.Println("listening to RFID module ..")
 				n, err := port.Read(buf)
 				if err != nil {
-					fmt.Printf("error while reading from RFID module: %s\n", err)
+					log.Printf("error while reading from RFID module: %s\n", err)
 					break
 				}
-				fmt.Printf("got '%s' from RFID module(%d bytes)\n", string(buf[:14]), n)
+				log.Printf("got '%s' from RFID module(%d bytes)\n", string(buf[:14]), n)
 				if n != 16 {
-					fmt.Printf("error: data length is not 16 (it is %d)", n)
+					log.Printf("error: data length is not 16 (it is %d)", n)
 					port.Flush()
 					time.Sleep(5 * time.Second)
 					continue
@@ -66,7 +66,7 @@ func main() {
 					str := string(buf[:14])
 					decID, err := strconv.ParseInt(str, 16, 64)
 					if err != nil {
-						fmt.Printf("error while converting '%s' to decimal: %s\n", str, err)
+						log.Printf("error while converting '%s' to decimal: %s\n", str, err)
 					}
 					resp := fmt.Sprintf("%d", decID)
 					writeToPipe(resp)
@@ -80,20 +80,20 @@ func main() {
 		buf := bytes.NewBufferString(data)
 		waitingForID = true
 		_, err := io.Copy(buf, PipeReader)
-		fmt.Printf("sent %s as response\n", buf.String())
+		log.Printf("sent %s as response\n", buf.String())
 		if strings.Contains(buf.String(), "lost") {
 			w.WriteHeader(http.StatusNotFound)
 		}
 		w.Write(buf.Bytes())
 		if err != nil {
-			fmt.Printf("error while sending response: %s\n", err)
+			log.Printf("error while sending response: %s\n", err)
 		}
 	})
 	if *unsecure {
-		fmt.Println("http server started on port 8040")
+		log.Println("http server started on port 8040")
 		log.Fatal(http.ListenAndServe(":8040", nil))
 	}
-	fmt.Println("https server started on port 8040")
+	log.Println("https server started on port 8040")
 	log.Fatal(http.ListenAndServeTLS(":8040", "localhost.crt", "localhost.key", nil))
 }
 
