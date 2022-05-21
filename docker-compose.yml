@@ -11,7 +11,7 @@ services:
   gm65server:
     build: .
     restart: always
-    image: "www.greisslomat.at:5000/rfid:${RFID_VERSION}"
+    image: "www.greisslomat.at:3307/rfid:${RFID_VERSION}"
     ports:
       - "8040:8040"
     volumes:
