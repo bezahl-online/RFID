@@ -74,6 +74,7 @@ func main() {
 			}
 		}
 	}()
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		var data string
@@ -89,6 +90,13 @@ func main() {
 			log.Printf("error while sending response: %s\n", err)
 		}
 	})
+	http.HandleFunc("/mock", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		writeToPipe(r.URL.Query().Get("code"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	if *unsecure {
 		log.Println("http server started on port 8040")
 		log.Fatal(http.ListenAndServe(":8040", nil))
