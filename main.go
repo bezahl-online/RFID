@@ -22,9 +22,9 @@ var unsecure *bool
 
 const BAUD = 9600
 const WAIT_FOR_RFID_MODULE_TIME = 3 * time.Second
+const DEVICE_CONNECTED = true
 
 func main() {
-	unsecure = flag.Bool("u", false, "unsecure")
 	flag.Parse()
 	rfid_port := "/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0"
 	if len(os.Getenv("RFID_PORT_NAME")) > 3 {
@@ -34,42 +34,44 @@ func main() {
 	PipeReader, PipeWriter = io.Pipe()
 	go func() {
 		var port *term.Term
-		for {
-			port, err = term.Open(rfid_port)
-			if err != nil {
-				log.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", rfid_port)
-				if waitingForID {
-					writeToPipe("lost connection to RFID module")
-				}
-				time.Sleep(WAIT_FOR_RFID_MODULE_TIME)
-				continue
-			}
-			port.SetRaw()
-			port.SetSpeed(BAUD)
-			buf := make([]byte, 16)
+		if DEVICE_CONNECTED {
 			for {
-				log.Println("listening to RFID module ..")
-				n, err := port.Read(buf)
+				port, err = term.Open(rfid_port)
 				if err != nil {
-					log.Printf("error while reading from RFID module: %s\n", err)
-					break
-				}
-				log.Printf("got '%s' from RFID module(%d bytes)\n", string(buf[:14]), n)
-				if n != 16 {
-					log.Printf("error: data length is not 16 (it is %d)", n)
-					port.Flush()
-					time.Sleep(5 * time.Second)
+					log.Printf("error connecting to RFID modul on port %s\nwaiting for module to come up..", rfid_port)
+					if waitingForID {
+						writeToPipe("lost connection to RFID module")
+					}
+					time.Sleep(WAIT_FOR_RFID_MODULE_TIME)
 					continue
 				}
-				if waitingForID {
-					waitingForID = false
-					str := string(buf[:14])
-					decID, err := strconv.ParseInt(str, 16, 64)
+				port.SetRaw()
+				port.SetSpeed(BAUD)
+				buf := make([]byte, 16)
+				for {
+					log.Println("listening to RFID module ..")
+					n, err := port.Read(buf)
 					if err != nil {
-						log.Printf("error while converting '%s' to decimal: %s\n", str, err)
+						log.Printf("error while reading from RFID module: %s\n", err)
+						break
 					}
-					resp := fmt.Sprintf("%d", decID)
-					writeToPipe(resp)
+					log.Printf("got '%s' from RFID module(%d bytes)\n", string(buf[:14]), n)
+					if n != 16 {
+						log.Printf("error: data length is not 16 (it is %d)", n)
+						port.Flush()
+						time.Sleep(5 * time.Second)
+						continue
+					}
+					if waitingForID {
+						waitingForID = false
+						str := string(buf[:14])
+						decID, err := strconv.ParseInt(str, 16, 64)
+						if err != nil {
+							log.Printf("error while converting '%s' to decimal: %s\n", str, err)
+						}
+						resp := fmt.Sprintf("%d", decID)
+						writeToPipe(resp)
+					}
 				}
 			}
 		}
@@ -92,7 +94,9 @@ func main() {
 	})
 	http.HandleFunc("/mock", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		writeToPipe(r.URL.Query().Get("code"))
+		code := r.URL.Query().Get("code")
+		fmt.Printf("mock: '%s'", code)
+		writeToPipe(code)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
