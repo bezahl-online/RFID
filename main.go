@@ -19,12 +19,14 @@ var PipeReader *io.PipeReader
 var PipeWriter *io.PipeWriter
 var waitingForID = false
 var unsecure *bool
+var nodevice *bool
 
 const BAUD = 9600
 const WAIT_FOR_RFID_MODULE_TIME = 3 * time.Second
-const DEVICE_CONNECTED = true
 
 func main() {
+	unsecure = flag.Bool("u", false, "unsecure")
+	nodevice = flag.Bool("d", false, "no device")
 	flag.Parse()
 	rfid_port := "/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0"
 	if len(os.Getenv("RFID_PORT_NAME")) > 3 {
@@ -34,7 +36,7 @@ func main() {
 	PipeReader, PipeWriter = io.Pipe()
 	go func() {
 		var port *term.Term
-		if DEVICE_CONNECTED {
+		if !*nodevice {
 			for {
 				port, err = term.Open(rfid_port)
 				if err != nil {
@@ -100,13 +102,17 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
-
-	if *unsecure {
-		log.Println("http server started on port 8040")
-		log.Fatal(http.ListenAndServe(":8040", nil))
+	log.Println("RFID server v0.2.0")
+	if *nodevice {
+		log.Println("*** starting without device")
 	}
-	log.Println("https server started on port 8040")
-	log.Fatal(http.ListenAndServeTLS(":8040", "localhost.crt", "localhost.key", nil))
+	if *unsecure {
+		log.Println("*** unsecure http server started on port 8040")
+		log.Fatal(http.ListenAndServe(":8040", nil))
+	} else {
+		log.Println("https server started on port 8040")
+		log.Fatal(http.ListenAndServeTLS(":8040", "localhost.crt", "localhost.key", nil))
+	}
 }
 
 func writeToPipe(resp string) {
