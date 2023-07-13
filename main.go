@@ -62,6 +62,7 @@ func main() {
 						log.Printf("error: data length is not 16 (it is %d)", n)
 						port.Flush()
 						time.Sleep(5 * time.Second)
+						// FIXME: reset buf?
 						continue
 					}
 					if waitingForID {
@@ -80,6 +81,7 @@ func main() {
 	}()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// FIXME: if data older then discard...
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		var data string
 		buf := bytes.NewBufferString(data)
