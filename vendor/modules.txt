@@ -1,0 +1,8 @@
+# github.com/pkg/term v1.1.0
+## explicit; go 1.14
+github.com/pkg/term
+github.com/pkg/term/termios
+# golang.org/x/sys v0.0.0-20200909081042-eff7692f9009
+## explicit; go 1.12
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
